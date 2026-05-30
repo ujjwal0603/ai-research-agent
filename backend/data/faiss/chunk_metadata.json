@@ -1,0 +1,58 @@
+[
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 0,
+    "text": "Ujjwal Pal\n\n\u00ef linkedin.com/in/ujjwal-pal-34384628a/\n\n# up14av8254@gmail.com\n\n\u00d0 leetcode.com/Lokesh 172\n\n\u0083 +91 9821103132\n\nEducation\n\nDelhi Technological University , Delhi\n\nExpected Graduation: 2028\n\nBachelor of Technology in Information Technology\n\nCGPA: 8.00\n\nBrightland School, Ghaziabad, Uttar Pradesh\n\nYear: 2024\n\nSecondary School\n\n12th Grade: 94%\n\nSt. Paul\u2019s Academy, Ghaziabad, Uttar Pradesh\n\nYear: 2022\n\nHigh School\n\n10th Grade: 96%\n\nSkills\n\nProgramming Languages: C++, C, Python",
+    "page_number": 1,
+    "char_count": 487
+  },
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 1,
+    "text": "Languages: C++, C, Python Developer Tools: Git, Postman\n\nFront-End Technologies: HTML, CSS, Tailwind CSS, JavaScript, TypeScript, React.js, Next.js, Shadcn, DaisyUI\n\nBack-End & Databases: Express.js, MongoDB, PostgreSQL, Firebase, Prisma, tRPC, LangChain, Pinecone\n\nCoding Platforms: LeetCode, GeeksforGeeks, Codeforces\n\nCoursework: Data Structures and Algorithms, Object-Oriented Programming, Web Development, Data Communication,\n\nData Science and Visualization, Operating System, Database Management System\n\nProjects",
+    "page_number": 1,
+    "char_count": 518
+  },
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 2,
+    "text": "System, Database Management System\n\nProjects Briefly \u2013 AI Document Query Platform (Next.js, Prisma, tRPC, LangChain, Pinecone)\n\nLive Link\n\n\u2022 Developed an end-to-end SaaS platform for AI-powered PDF querying with a drag-and-drop viewer supporting PDFs up\n\nto 25 MB and 500+ pages without client-side performance loss.\n\n\u2022 Integrated secure Kinde authentication with role-based access control, protecting 100% of application routes via\n\nsession management.",
+    "page_number": 1,
+    "char_count": 453
+  },
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 3,
+    "text": "of application routes via\n\nsession management. \u2022 Implemented Free and Pro subscription tiers with Razorpay payments, enabling automated billing, webhook-based\n\naccess control, and instant upgrades with 0 manual intervention.\n\n\u2022 Enabled Retrieval-Augmented Generation (RAG)-based semantic document search using LangChain and\n\nPinecone for vector embeddings, AI memory, and context-aware querying.\n\n\u2022 Developed end-to-end type-safe APIs using tRPC, Zod, and Prisma ORM in TypeScript, managing 10+\n\nrelational models with safe migrations.",
+    "page_number": 1,
+    "char_count": 535
+  },
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 4,
+    "text": "10+\n\nrelational models with safe migrations. Netflix GPT \u2013 AI Movie Recommendation Platform (React.js, Redux Toolkit, Firebase)\n\nLive Link\n\nNote: TMDB API access depends on DNS provider support (e.g., Cloudflare).\n\n\u2022 Designed an AI-powered movie discovery platform that generates personalized recommendations from natural language\n\nprompts using the Gemini API, simulating a Netflix-like browsing experience.\n\n\u2022 Integrated TMDB API to fetch rich movie data including trailers, ratings, genres, cast details, and related titles,",
+    "page_number": 1,
+    "char_count": 527
+  },
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 5,
+    "text": "genres, cast details, and related titles, enabling real-time content exploration.\n\n\u2022 Implemented secure authentication and session persistence using Firebase Authentication, ensuring protected user\n\naccess and seamless login/logout flows.\n\n\u2022 Designed scalable client-side architecture with Redux Toolkit for centralized state management, async data fetching,\n\nand predictable application behavior.\n\nAchievements\n\n\u2022 Secured position in Top 15,000 at Google Big Code 2026.\n\n\u2022 Secured 99.2 percentile in JEE Mains 2024 among 1.2M+ candidates.",
+    "page_number": 1,
+    "char_count": 539
+  },
+  {
+    "document_id": "8e919d43-3f17-4992-a7b1-9c57b922f874",
+    "document_name": "RESUME.pdf",
+    "chunk_index": 6,
+    "text": "in JEE Mains 2024 among 1.2M+ candidates. \u2022 Solved 700+ Data Structures and Algorithms (DSA) problems on GeeksforGeeks and other coding platforms.\n\n\u2022 Won 1st Place in INVICTUS 2025 \u2013 DeCyber among 270+ teams, organized by the Mathematics and Computing\n\nSociety, Delhi Technological University.",
+    "page_number": 1,
+    "char_count": 293
+  }
+]
