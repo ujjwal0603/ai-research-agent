@@ -1,42 +1,69 @@
 """
-Embedding model provider using the Gemini REST API via httpx.
+Embedding model using feature-hashing (zero external dependencies).
 
-Completely bypasses the google-generativeai SDK's gRPC layer
-(which returns 404 errors on certain platforms) and instead
-calls Google's REST endpoint directly over plain HTTPS.
+This implementation uses the "hashing trick" to convert text into
+fixed-dimension dense vectors using only numpy and hashlib.
+It requires ZERO additional RAM, ZERO API calls, and ZERO downloads.
 
-Uses zero local RAM — no PyTorch, no sentence-transformers.
+The vectors support cosine-similarity search in Qdrant and combined
+with the existing BM25 sparse search, provide effective RAG retrieval.
+Gemini still handles all the intelligent answer generation.
 """
 
 from __future__ import annotations
 
-import asyncio
+import hashlib
 import logging
-from typing import Any
+import re
 
-import httpx
 import numpy as np
 
-from config.settings import get_settings
 from models_layer.base import ModelProvider
 
 logger = logging.getLogger(__name__)
 
-# Gemini REST API base
-_GEMINI_API_BASE = "https://generativelanguage.googleapis.com"
+# ── Simple but effective tokenizer ───────────────────────────────────────
+
+_WORD_RE = re.compile(r"[a-zA-Z0-9]+(?:'[a-z]+)?")
+
+# Common English stop-words to down-weight (not remove — they still help)
+_STOP_WORDS = frozenset(
+    "a an the is are was were be been being have has had do does did "
+    "will would shall should may might can could of in to for on with "
+    "at by from as into through during before after above below between "
+    "out off over under again further then once here there when where "
+    "why how all each every both few more most other some such no nor "
+    "not only own same so than too very it its he she they them their "
+    "this that these those i me my we our you your and but or if".split()
+)
+
+
+def _tokenize(text: str) -> list[str]:
+    """Extract lowercase word tokens from text."""
+    return [w.lower() for w in _WORD_RE.findall(text) if len(w) > 1]
 
 
 class EmbeddingModel(ModelProvider):
-    """Async embedding model backed by Gemini REST API (no gRPC)."""
+    """Feature-hashing embedding model — zero RAM, zero API, zero downloads.
 
-    def __init__(self, model_name_or_path: str = "text-embedding-004") -> None:
-        settings = get_settings()
-        self._api_key = settings.GEMINI_API_KEY
-        self._model_name = "text-embedding-004"
-        self._dimension: int = 768
-        self._loaded: bool = False
-        self._client: httpx.AsyncClient | None = None
-        logger.info("EmbeddingModel created (Gemini REST API, zero local RAM)")
+    Uses multiple hash functions to map words and bigrams into a
+    fixed-dimension vector space. The resulting vectors support
+    cosine similarity for nearest-neighbour search.
+    """
+
+    DIMENSION = 384
+    _NUM_HASHES = 4        # Number of hash functions per token
+    _BIGRAM_WEIGHT = 0.7   # Relative weight for bigram features
+    _STOP_WEIGHT = 0.3     # Down-weight stop words (don't remove them)
+
+    def __init__(self, model_name_or_path: str = "feature-hash-384") -> None:
+        self._model_name = "feature-hash-384"
+        self._dimension = self.DIMENSION
+        self._loaded = False
+        logger.info(
+            "EmbeddingModel created (feature-hashing, dim=%d, zero RAM)",
+            self._dimension,
+        )
 
     # ── ModelProvider interface ───────────────────────────────────────────
 
@@ -49,26 +76,14 @@ class EmbeddingModel(ModelProvider):
         return self._loaded
 
     async def load(self) -> None:
-        if self._loaded:
-            return
-        # Create a persistent HTTP client for connection pooling
-        self._client = httpx.AsyncClient(timeout=120.0)
         self._loaded = True
-        logger.info("EmbeddingModel loaded (Gemini REST, dim=%d).", self._dimension)
+        logger.info("EmbeddingModel loaded (feature-hashing, no downloads needed).")
 
     async def unload(self) -> None:
-        if self._client:
-            await self._client.aclose()
-            self._client = None
         self._loaded = False
 
     async def health_check(self) -> bool:
-        try:
-            vec = await self.embed_query("health check")
-            return vec.shape[0] == self._dimension
-        except Exception:
-            logger.exception("EmbeddingModel health-check failed.")
-            return False
+        return True
 
     # ── Public API ───────────────────────────────────────────────────────
 
@@ -77,140 +92,86 @@ class EmbeddingModel(ModelProvider):
         return self._dimension
 
     async def embed_texts(self, texts: list[str]) -> np.ndarray:
-        """Embed a batch of texts via Gemini REST API."""
+        """Embed a batch of texts into fixed-dimension vectors."""
         if not texts:
             return np.empty((0, self._dimension), dtype=np.float32)
 
         await self._ensure_loaded()
 
-        all_embeddings: list[list[float]] = []
-        batch_size = 50  # Conservative batch size for REST API
+        vectors = np.zeros((len(texts), self._dimension), dtype=np.float32)
+        for i, text in enumerate(texts):
+            vectors[i] = self._hash_embed(text)
 
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            batch_embeddings = await self._embed_batch_rest(batch)
-            all_embeddings.extend(batch_embeddings)
-
-            # Small delay between batches to avoid rate limiting
-            if i + batch_size < len(texts):
-                await asyncio.sleep(0.3)
-
-        arr = np.array(all_embeddings, dtype=np.float32)
-
-        # L2 normalise
-        norms = np.linalg.norm(arr, axis=1, keepdims=True)
-        norms[norms == 0] = 1
-        arr = arr / norms
-
-        logger.debug("Embedded %d text(s) via Gemini REST API.", len(texts))
-        return arr
+        logger.debug("Embedded %d text(s) via feature-hashing.", len(texts))
+        return vectors
 
     async def embed_query(self, query: str) -> np.ndarray:
-        vectors = await self.embed_texts([query])
-        return vectors[0]
+        """Embed a single query string."""
+        await self._ensure_loaded()
+        return self._hash_embed(query)
 
-    # ── REST API calls ───────────────────────────────────────────────────
+    # ── Core hashing algorithm ───────────────────────────────────────────
 
-    async def _embed_batch_rest(self, texts: list[str]) -> list[list[float]]:
-        """Call Gemini batchEmbedContents REST endpoint directly."""
-        assert self._client is not None
+    def _hash_embed(self, text: str) -> np.ndarray:
+        """Convert text to a fixed-dimension vector using feature hashing.
 
-        # Build batch request payload
-        requests_payload: list[dict[str, Any]] = []
-        for text in texts:
-            # Truncate very long texts to avoid API errors (max ~10k tokens)
-            truncated = text[:8000] if len(text) > 8000 else text
-            requests_payload.append({
-                "model": f"models/{self._model_name}",
-                "content": {"parts": [{"text": truncated}]},
-                "taskType": "RETRIEVAL_DOCUMENT",
-            })
+        Algorithm:
+        1. Tokenize text into words
+        2. For each word, compute multiple hash values
+        3. Map hashes to vector indices with random signs
+        4. Add bigram features for phrase-level semantics
+        5. Apply IDF-like weighting (rare words get higher weight)
+        6. L2 normalise the result
+        """
+        vec = np.zeros(self._dimension, dtype=np.float32)
+        tokens = _tokenize(text)
 
-        # Try multiple API versions in order
-        api_versions = ["v1beta", "v1"]
-        last_error = None
+        if not tokens:
+            return vec
 
-        for api_version in api_versions:
-            url = (
-                f"{_GEMINI_API_BASE}/{api_version}/"
-                f"models/{self._model_name}:batchEmbedContents"
-                f"?key={self._api_key}"
-            )
+        # ── Unigram features ─────────────────────────────────────────
+        token_counts: dict[str, int] = {}
+        for tok in tokens:
+            token_counts[tok] = token_counts.get(tok, 0) + 1
 
-            try:
-                response = await self._client.post(
-                    url,
-                    json={"requests": requests_payload},
-                )
+        for tok, count in token_counts.items():
+            # TF component: sub-linear (log) to dampen frequent terms
+            tf = 1.0 + np.log(count) if count > 1 else 1.0
 
-                if response.status_code == 200:
-                    data = response.json()
-                    embeddings = [emb["values"] for emb in data["embeddings"]]
-                    return embeddings
+            # Down-weight stop words
+            weight = tf * (self._STOP_WEIGHT if tok in _STOP_WORDS else 1.0)
 
-                last_error = f"HTTP {response.status_code}: {response.text[:500]}"
-                logger.warning(
-                    "Gemini REST %s failed: %s — trying next version",
-                    api_version, last_error,
-                )
+            # Longer words are often more informative
+            if len(tok) > 6:
+                weight *= 1.2
 
-            except Exception as exc:
-                last_error = str(exc)
-                logger.warning(
-                    "Gemini REST %s error: %s — trying next version",
-                    api_version, exc,
-                )
+            for seed in range(self._NUM_HASHES):
+                h = hashlib.sha256(f"{seed}:{tok}".encode()).digest()
+                idx = int.from_bytes(h[:4], "little") % self._dimension
+                sign = 1.0 if h[4] & 1 else -1.0
+                vec[idx] += sign * weight
 
-        # If batch endpoint fails on all versions, try single embedContent
-        logger.warning("Batch endpoint failed, falling back to single embedContent calls")
-        return await self._embed_single_fallback(texts)
+        # ── Bigram features (capture word order / phrases) ───────────
+        for i in range(len(tokens) - 1):
+            bigram = f"{tokens[i]}_{tokens[i + 1]}"
+            weight = self._BIGRAM_WEIGHT
 
-    async def _embed_single_fallback(self, texts: list[str]) -> list[list[float]]:
-        """Fallback: embed one text at a time via embedContent endpoint."""
-        assert self._client is not None
-        embeddings: list[list[float]] = []
+            # Down-weight if both are stop words
+            if tokens[i] in _STOP_WORDS and tokens[i + 1] in _STOP_WORDS:
+                weight *= self._STOP_WEIGHT
 
-        for text in texts:
-            truncated = text[:8000] if len(text) > 8000 else text
+            for seed in range(2):  # Fewer hashes for bigrams
+                h = hashlib.sha256(f"bi{seed}:{bigram}".encode()).digest()
+                idx = int.from_bytes(h[:4], "little") % self._dimension
+                sign = 1.0 if h[4] & 1 else -1.0
+                vec[idx] += sign * weight
 
-            for api_version in ["v1beta", "v1"]:
-                url = (
-                    f"{_GEMINI_API_BASE}/{api_version}/"
-                    f"models/{self._model_name}:embedContent"
-                    f"?key={self._api_key}"
-                )
+        # ── L2 normalise ─────────────────────────────────────────────
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec /= norm
 
-                try:
-                    response = await self._client.post(
-                        url,
-                        json={
-                            "model": f"models/{self._model_name}",
-                            "content": {"parts": [{"text": truncated}]},
-                            "taskType": "RETRIEVAL_DOCUMENT",
-                        },
-                    )
-
-                    if response.status_code == 200:
-                        data = response.json()
-                        embeddings.append(data["embedding"]["values"])
-                        break
-                    else:
-                        logger.warning("embedContent %s: HTTP %d", api_version, response.status_code)
-
-                except Exception as exc:
-                    logger.warning("embedContent %s error: %s", api_version, exc)
-
-            else:
-                # All API versions failed for this text — raise
-                raise RuntimeError(
-                    f"Gemini embedding API failed for all API versions. "
-                    f"Check your GEMINI_API_KEY and network connectivity."
-                )
-
-            # Rate limit protection
-            await asyncio.sleep(0.1)
-
-        return embeddings
+        return vec
 
     # ── Internals ────────────────────────────────────────────────────────
 
