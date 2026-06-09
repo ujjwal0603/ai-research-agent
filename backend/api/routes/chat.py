@@ -76,9 +76,7 @@ async def chat(
     # ── Streaming path ──────────────────────────────
     if body.stream:
         return EventSourceResponse(
-            stream_orchestrator_response(
-                orchestrator, query, context, session_id=session_id
-            )
+            orchestrator.process_query_stream(query, context)
         )
 
     # ── Non-streaming path ──────────────────────────

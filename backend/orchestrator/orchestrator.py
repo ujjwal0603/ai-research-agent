@@ -181,6 +181,7 @@ class Orchestrator:
                         sources.append(chunk)
 
             # 4. Stream LLM response
+            full_answer = ""
             if chunks_text:
                 rag_context = self._build_rag_context(chunks_text)
                 system_prompt = self._get_system_prompt(plan.intent)
@@ -194,23 +195,26 @@ class Orchestrator:
                     system_prompt=system_prompt,
                     provider=provider,
                 ):
-                    yield {"event": SSE_EVENT_TOKEN, "data": token}
+                    full_answer += token
+                    yield {"event": SSE_EVENT_TOKEN, "data": json.dumps({"token": token})}
             else:
+                full_answer = "I couldn't find relevant information to answer your question."
                 yield {
                     "event": SSE_EVENT_TOKEN,
-                    "data": "I couldn't find relevant information to answer your question.",
+                    "data": json.dumps({"token": full_answer}),
                 }
 
             # Emit sources
             yield {
                 "event": SSE_EVENT_SOURCES,
-                "data": json.dumps(sources[:10]),  # Limit to top 10
+                "data": json.dumps({"sources": sources[:10]}),  # Limit to top 10
             }
 
             # Emit done
             yield {
                 "event": SSE_EVENT_DONE,
                 "data": json.dumps({
+                    "answer": full_answer,
                     "trace_id": trace_id,
                     "intent": plan.intent.value,
                     "steps": len(agent_results),
