@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     DEFAULT_LLM_PROVIDER: str = "auto"  # "gemini", "openai", "auto"
 
     # ── Embedding Model ─────────────────────────────
-    EMBEDDING_MODEL: str = "models/text-embedding-004"
-    EMBEDDING_DIMENSION: int = 768
+    EMBEDDING_MODEL: str = "paraphrase-MiniLM-L3-v2"
+    EMBEDDING_DIMENSION: int = 384
 
     # ── Reranking Model ─────────────────────────────
     RERANKING_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
