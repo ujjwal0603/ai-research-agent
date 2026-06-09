@@ -59,8 +59,15 @@ class ReasoningModelFactory:
         self._providers: dict[str, ReasoningModel] = {}
         self._ordered: list[ReasoningModel] = []
 
-        # Gemini — preferred
-        if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your_gemini_api_key_here":
+        preferred = settings.DEFAULT_LLM_PROVIDER.lower().strip()
+        logger.info("LLM provider preference: %s", preferred)
+
+        # Determine which providers to register based on user preference
+        register_gemini = preferred in ("auto", "gemini")
+        register_openai = preferred in ("auto", "openai")
+
+        # Gemini
+        if register_gemini and settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your_gemini_api_key_here":
             provider = GeminiProvider(
                 api_key=settings.GEMINI_API_KEY,
                 model_name=settings.GEMINI_MODEL,
@@ -69,8 +76,8 @@ class ReasoningModelFactory:
             self._ordered.append(provider)
             logger.info("Registered reasoning provider: gemini (%s)", settings.GEMINI_MODEL)
 
-        # OpenAI — fallback
-        if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your_openai_api_key_here":
+        # OpenAI / Groq
+        if register_openai and settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your_openai_api_key_here":
             provider = OpenAIProvider(
                 api_key=settings.OPENAI_API_KEY,
                 model_name=settings.OPENAI_MODEL,
