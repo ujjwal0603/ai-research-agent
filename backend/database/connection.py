@@ -49,7 +49,10 @@ else:
         "pool_recycle": settings.DB_POOL_RECYCLE,
     })
 
-engine = create_async_engine(settings.DATABASE_URL, **_engine_kwargs)
+# Clean up the database URL automatically (Neon adds sslmode=require, which breaks asyncpg)
+_clean_db_url = settings.DATABASE_URL.replace("?sslmode=require", "").replace("&sslmode=require", "")
+
+engine = create_async_engine(_clean_db_url, **_engine_kwargs)
 
 # ── Session Factory ─────────────────────────────────
 
