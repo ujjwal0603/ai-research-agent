@@ -64,17 +64,14 @@ class ModelRegistry:
         self._embedding_model = EmbeddingModel(
             model_name_or_path=settings.EMBEDDING_MODEL,
         )
-        await self._embedding_model.load()
 
         # Classification
         self._classification_model = ClassificationModel()
-        await self._classification_model.load()
 
         # Reranking
         self._reranking_model = RerankingModel(
             model_name_or_path=settings.RERANKING_MODEL,
         )
-        await self._reranking_model.load()
 
         # Reasoning (LLM)
         self._reasoning_factory = ReasoningModelFactory()
