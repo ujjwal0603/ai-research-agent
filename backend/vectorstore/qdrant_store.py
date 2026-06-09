@@ -57,6 +57,17 @@ class QdrantStore(VectorStore):
             # In-memory mode — no Docker/server needed for local dev
             self._client = AsyncQdrantClient(location=":memory:")
             logger.info("QdrantStore created (in-memory mode, dim=%d).", self._dimension)
+        elif hasattr(settings, "QDRANT_URL") and settings.QDRANT_URL:
+            # Qdrant Cloud — full URL with API key
+            self._client = AsyncQdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=self._api_key,
+                prefer_grpc=False,
+            )
+            logger.info(
+                "QdrantStore created (cloud url=%s, dim=%d).",
+                settings.QDRANT_URL, self._dimension,
+            )
         else:
             self._client = AsyncQdrantClient(
                 host=self._host,

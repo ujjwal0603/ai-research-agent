@@ -21,13 +21,20 @@ from config.constants import API_VERSION
 from api.middleware.cors import setup_cors
 from api.dependencies import initialize_all, shutdown_all
 
-# ── Logging Setup ──────────────────────────────────
+# ── Logging Setup ────────────────────────────────────
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+_settings = get_settings()
+
+try:
+    from config.logging_config import setup_logging
+    setup_logging(level=_settings.LOG_LEVEL, fmt=_settings.LOG_FORMAT)
+except ImportError:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
 logger = logging.getLogger(__name__)
 
 
@@ -75,13 +82,15 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
     settings = get_settings()
 
+    is_production = settings.ENVIRONMENT == "production"
+
     app = FastAPI(
         title=settings.APP_NAME,
         version=API_VERSION,
         description="Multi-agent AI Research Platform with RAG, summarization, quiz generation, and learning paths",
         lifespan=lifespan,
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=None if is_production else "/docs",
+        redoc_url=None if is_production else "/redoc",
     )
 
     # CORS

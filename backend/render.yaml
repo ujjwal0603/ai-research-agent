@@ -1,0 +1,43 @@
+# Render.com Blueprint — AI Research Agent Backend
+# This file tells Render how to build and deploy the backend.
+
+services:
+  - type: web
+    name: ai-research-agent-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: PORT
+        value: "10000"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_IN_MEMORY
+        value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+      - key: UPLOAD_DIR
+        value: /app/uploads
+      - key: REDIS_URL
+        value: "redis://localhost:6379/0"

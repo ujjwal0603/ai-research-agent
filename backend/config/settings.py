@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "AI Research Agent Platform"
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
+    ENVIRONMENT: str = "development"  # development / staging / production
+
+    # ── Logging ──────────────────────────────────────
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "text"  # text (dev) / json (production)
 
     # ── Server ───────────────────────────────────────
     HOST: str = "0.0.0.0"
@@ -37,6 +42,12 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
     QDRANT_GRPC_PORT: int = 6334
     QDRANT_IN_MEMORY: bool = True  # Use in-memory Qdrant for local dev
+    QDRANT_URL: str = ""  # Full URL for Qdrant Cloud (overrides host+port)
+
+    # ── Database Pool ───────────────────────────────
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE: int = 3600
 
     # ── Gemini API ───────────────────────────────────
     GEMINI_API_KEY: str = ""

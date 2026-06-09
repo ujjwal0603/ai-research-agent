@@ -42,8 +42,11 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.0
 
-# ── SSE Streaming ──────────────────────────
+# ── SSE Streaming ──────────────────────────────
 sse-starlette>=1.8.0
+
+# ── Production ASGI Server ─────────────────────
+gunicorn>=21.2.0
 
 # ── Sparse Search (BM25) ──────────────────
 rank-bm25>=0.2.2
