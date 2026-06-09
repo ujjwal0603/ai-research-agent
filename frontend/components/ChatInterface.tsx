@@ -2,20 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import MessageBubble from './MessageBubble';
-
-interface SourceChunk {
-  text: string;
-  document_name: string;
-  page_number: number;
-  chunk_index: number;
-  score: number;
-}
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: SourceChunk[];
-}
+import { Message, SourceChunk } from '@/lib/api';
 
 interface ChatInterfaceProps {
   messages: Message[];
