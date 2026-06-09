@@ -33,9 +33,15 @@ class OpenAIProvider(ReasoningModel):
     ) -> None:
         import openai  # type: ignore[import-untyped]
 
+        from config.settings import get_settings
+        settings = get_settings()
+        
         self._api_key = api_key
         self._model_name = model_name
-        self._client = openai.AsyncOpenAI(api_key=self._api_key)
+        self._client = openai.AsyncOpenAI(
+            api_key=self._api_key, 
+            base_url=settings.OPENAI_BASE_URL if settings.OPENAI_BASE_URL else None
+        )
         logger.info("OpenAIProvider initialised (model=%s).", self._model_name)
 
     # ── ReasoningModel interface ─────────────────────────────────────────

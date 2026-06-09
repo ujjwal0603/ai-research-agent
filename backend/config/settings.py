@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # ── OpenAI API ───────────────────────────────────
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_BASE_URL: str | None = None
 
     # ── LLM Default Provider ────────────────────────
     DEFAULT_LLM_PROVIDER: str = "auto"  # "gemini", "openai", "auto"
