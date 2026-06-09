@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 class EmbeddingModel(ModelProvider):
     """Async wrapper around Google Gemini Embeddings API."""
 
-    def __init__(self, model_name_or_path: str = "models/embedding-001") -> None:
-        self._model_name = "models/embedding-001"
+    def __init__(self, model_name_or_path: str = "models/text-embedding-004") -> None:
+        self._model_name = "models/text-embedding-004"
         self._dimension: int = 768
         self._loaded: bool = False
         logger.info("EmbeddingModel created (Gemini API, no local RAM used)")
@@ -81,15 +81,22 @@ class EmbeddingModel(ModelProvider):
         await self._ensure_loaded()
         
         try:
-            # The API allows batching.
-            result = genai.embed_content(
-                model=self._model_name,
-                content=texts,
-                task_type="retrieval_document"
-            )
-            embeddings = result['embedding']
+            # Gemini API max batch size is typically 100.
+            # We must chunk the texts into smaller batches to prevent 404/400 errors.
+            batch_size = 100
+            all_embeddings = []
             
-            arr = np.array(embeddings, dtype=np.float32)
+            for i in range(0, len(texts), batch_size):
+                batch_texts = texts[i : i + batch_size]
+                result = genai.embed_content(
+                    model=self._model_name,
+                    content=batch_texts,
+                    task_type="retrieval_document"
+                )
+                all_embeddings.extend(result['embedding'])
+                await asyncio.sleep(0.5)  # Rate limit protection
+            
+            arr = np.array(all_embeddings, dtype=np.float32)
             # L2 Normalize
             norms = np.linalg.norm(arr, axis=1, keepdims=True)
             norms[norms == 0] = 1

@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     DEFAULT_LLM_PROVIDER: str = "auto"  # "gemini", "openai", "auto"
 
     # ── Embedding Model ─────────────────────────────
-    EMBEDDING_MODEL: str = "models/embedding-001"
+    EMBEDDING_MODEL: str = "models/text-embedding-004"
     EMBEDDING_DIMENSION: int = 768
 
     # ── Reranking Model ─────────────────────────────

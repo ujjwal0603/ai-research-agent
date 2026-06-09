@@ -166,8 +166,8 @@ class BaseAgent(ABC):
         return AgentResult(
             task_id=task.task_id,
             agent_id=task.agent_id,
-            success=(status == "success"),
-            data=output_data,
+            status=status,
+            output_data=output_data,
             error=error,
             latency_ms=latency_ms,
         )
