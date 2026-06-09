@@ -141,24 +141,7 @@ class SearchStrategyExecutor:
         filters: dict[str, Any] | None = None,
         alpha: float = 0.5,
     ) -> list[dict]:
-        """Combined dense + sparse search with score fusion.
-
-        Parameters
-        ----------
-        query:
-            Natural language query.
-        top_k:
-            Maximum number of results.
-        filters:
-            Optional payload filters.
-        alpha:
-            Weight for dense vs. sparse scores (0 = sparse, 1 = dense).
-
-        Returns
-        -------
-        list[dict]
-            Merged and scored chunk dicts.
-        """
+        """Combined dense + sparse search with score fusion."""
         logger.info(
             "Hybrid search: query='%s…' top_k=%d alpha=%.2f",
             query[:60], top_k, alpha,
@@ -171,10 +154,8 @@ class SearchStrategyExecutor:
             return await self.execute_dense(query, top_k, filters)
 
         try:
-            query_embedding = await self._embedding_model.embed_query(query)
-            results = await self._hybrid.search(
+            results = await self._hybrid.hybrid_search(
                 query=query,
-                query_embedding=query_embedding,
                 top_k=top_k,
                 alpha=alpha,
                 filters=filters,
@@ -196,22 +177,7 @@ class SearchStrategyExecutor:
         results: list[dict],
         top_k: int = DEFAULT_TOP_K,
     ) -> list[dict]:
-        """Rerank *results* using the cross-encoder model.
-
-        Parameters
-        ----------
-        query:
-            The original search query.
-        results:
-            Chunk dicts to rerank.
-        top_k:
-            Maximum results to return after reranking.
-
-        Returns
-        -------
-        list[dict]
-            Reranked (and possibly trimmed) chunk list.
-        """
+        """Rerank *results* using the cross-encoder model."""
         if self._reranking_model is None:
             logger.warning("No reranking model — returning results as-is.")
             return results[:top_k]
@@ -231,23 +197,10 @@ class SearchStrategyExecutor:
     ) -> list[dict]:
         """Perform a plain vector search (no filters)."""
         try:
-            # Try async API first.
-            if hasattr(self._qdrant, "search_async"):
-                return await self._qdrant.search_async(
-                    collection=QDRANT_COLLECTION_CHUNKS,
-                    query_vector=query_embedding.tolist(),
-                    limit=top_k,
-                )
-            # Fall back to sync search wrapped in a thread.
-            import asyncio
-
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(
-                None,
-                lambda: self._qdrant.search(
-                    query_embedding=query_embedding.reshape(1, -1),
-                    top_k=top_k,
-                ),
+            return await self._qdrant.search(
+                query_vector=query_embedding,
+                collection=QDRANT_COLLECTION_CHUNKS,
+                top_k=top_k,
             )
         except Exception as exc:
             logger.error("Qdrant search failed: %s", exc)
@@ -261,25 +214,12 @@ class SearchStrategyExecutor:
     ) -> list[dict]:
         """Perform a vector search with payload filters."""
         try:
-            if hasattr(self._qdrant, "search_with_filter_async"):
-                return await self._qdrant.search_with_filter_async(
-                    collection=QDRANT_COLLECTION_CHUNKS,
-                    query_vector=query_embedding.tolist(),
-                    filters=filters,
-                    limit=top_k,
-                )
-            # Fall back to un-filtered search and filter in-memory.
-            all_results = await self._search(query_embedding, top_k * 3)
-            filtered: list[dict] = []
-            for r in all_results:
-                match = all(
-                    r.get(key) == value for key, value in filters.items()
-                )
-                if match:
-                    filtered.append(r)
-                if len(filtered) >= top_k:
-                    break
-            return filtered
+            return await self._qdrant.search(
+                query_vector=query_embedding,
+                collection=QDRANT_COLLECTION_CHUNKS,
+                top_k=top_k,
+                filters=filters,
+            )
         except Exception as exc:
             logger.error("Qdrant filtered search failed: %s", exc)
             return []
