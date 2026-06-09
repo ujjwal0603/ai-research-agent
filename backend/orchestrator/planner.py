@@ -61,7 +61,7 @@ class TaskPlanner:
         plan = ExecutionPlan(intent=intent, confidence=confidence, context=ctx)
 
         # Build steps based on intent
-        builder = self._plan_builders.get(intent, self._plan_question)
+        builder = self._plan_builders.get(intent, TaskPlanner._plan_question)
         builder(self, plan, query, ctx)
 
         logger.info(
