@@ -176,9 +176,15 @@ class Orchestrator:
             sources = []
             for result in agent_results:
                 if result.status == "success" and "chunks" in result.output_data:
-                    for chunk in result.output_data["chunks"]:
-                        chunks_text.append(chunk.get("text", ""))
-                        sources.append(chunk)
+                    for raw_chunk in result.output_data["chunks"]:
+                        # Lift payload fields to the top level for consistency
+                        payload = raw_chunk.get("payload", {})
+                        chunk = {**payload, **raw_chunk}
+                        
+                        text = chunk.get("text", "")
+                        if text:
+                            chunks_text.append(text)
+                            sources.append(chunk)
 
             # 4. Stream LLM response
             full_answer = ""

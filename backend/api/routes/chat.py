@@ -87,17 +87,20 @@ async def chat(
         raw_sources = result.get("sources", []) if isinstance(result, dict) else []
         trace = result.get("trace") if isinstance(result, dict) else None
 
-        sources = [
-            SourceChunk(
-                text=s.get("text", ""),
-                document_name=s.get("document_name", "Unknown"),
-                page_number=s.get("page_number"),
-                chunk_index=s.get("chunk_index", 0),
-                score=round(s.get("score", 0.0), 4),
-                document_id=s.get("document_id"),
+        sources = []
+        for s in raw_sources:
+            payload = s.get("payload", {})
+            norm_s = {**payload, **s}
+            sources.append(
+                SourceChunk(
+                    text=norm_s.get("text", ""),
+                    document_name=norm_s.get("document_name", "Unknown"),
+                    page_number=norm_s.get("page_number"),
+                    chunk_index=norm_s.get("chunk_index", 0),
+                    score=round(norm_s.get("score", 0.0), 4),
+                    document_id=norm_s.get("document_id"),
+                )
             )
-            for s in raw_sources
-        ]
 
         # Save assistant message
         if session_id and history_mgr:
