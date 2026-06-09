@@ -53,6 +53,9 @@ class IndexBuilder:
         texts = [c["text"] for c in chunks]
 
         logger.info(f"Embedding {len(texts)} chunks for document {document_id}...")
+        if texts:
+            logger.info(f"Sample chunk text from {document_id}: {repr(texts[0][:200])}")
+        
         embeddings = await self._embedding.embed_texts(texts)
 
         # Build payloads for Qdrant

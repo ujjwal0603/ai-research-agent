@@ -174,21 +174,29 @@ class Orchestrator:
             # 3. Collect chunks
             chunks_text = []
             sources = []
-            for result in agent_results:
+            
+            # Find the final result that contains chunks
+            final_chunk_result = None
+            for result in reversed(agent_results):
                 if result.status == "success" and "chunks" in result.output_data:
-                    for raw_chunk in result.output_data["chunks"]:
-                        # Lift payload fields to the top level for consistency
-                        payload = raw_chunk.get("payload", {})
-                        chunk = {**payload, **raw_chunk}
-                        
-                        text = chunk.get("text", "")
-                        if text:
-                            chunks_text.append(text)
-                            sources.append(chunk)
+                    final_chunk_result = result
+                    break
+                    
+            if final_chunk_result:
+                for raw_chunk in final_chunk_result.output_data["chunks"]:
+                    # Lift payload fields to the top level for consistency
+                    payload = raw_chunk.get("payload", {})
+                    chunk = {**payload, **raw_chunk}
+                    
+                    text = chunk.get("text", "")
+                    if text:
+                        chunks_text.append(text)
+                        sources.append(chunk)
 
             # 4. Stream LLM response
             full_answer = ""
             if chunks_text:
+                logger.info("RAG chunks_text: %s", chunks_text)
                 rag_context = self._build_rag_context(chunks_text)
                 system_prompt = self._get_system_prompt(plan.intent)
                 user_prompt = RAG_USER_PROMPT_TEMPLATE.format(
