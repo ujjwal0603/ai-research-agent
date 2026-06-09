@@ -76,6 +76,9 @@ class TaskPlanner:
         """QUESTION: Retrieve → Rerank → Generate answer"""
         document_ids = ctx.get("document_ids")
         search_strategy = ctx.get("search_strategy", "hybrid")
+        # Ensure we have a plain string, not an Enum object
+        if hasattr(search_strategy, "value"):
+            search_strategy = search_strategy.value
         top_k = ctx.get("top_k", 5)
 
         plan.steps = [

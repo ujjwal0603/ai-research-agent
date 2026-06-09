@@ -128,8 +128,9 @@ class RetrievalAgent(BaseAgent):
     # ── BaseAgent interface ─────────────────────────────────────────────
 
     async def validate_input(self, task: AgentTask) -> bool:
-        """Validate that the task input_data contains the required fields."""
-        action = task.input_data.get("action")
+        """Validate that the task contains the required fields."""
+        # The dispatcher sets action on task.action, NOT inside input_data
+        action = task.action
         if action not in self.capabilities:
             logger.warning(
                 "Invalid action '%s' for RetrievalAgent. Valid: %s",
@@ -139,8 +140,8 @@ class RetrievalAgent(BaseAgent):
             return False
 
         if action == "rerank":
-            # Rerank requires 'chunks' in input_data.
-            if not task.input_data.get("chunks"):
+            # Rerank requires 'chunks' in input_data or from previous results.
+            if not task.input_data.get("chunks") and not task.input_data.get("previous_results"):
                 logger.warning("Rerank action requires 'chunks' in input_data.")
                 return False
         else:
@@ -177,7 +178,7 @@ class RetrievalAgent(BaseAgent):
                 latency_ms=latency,
             )
 
-        action: str = task.input_data["action"]
+        action: str = task.action
         query: str = task.input_data.get("query", "")
         top_k: int = task.input_data.get("top_k", DEFAULT_TOP_K)
         filters: dict | None = task.input_data.get("filters")
@@ -194,7 +195,13 @@ class RetrievalAgent(BaseAgent):
             elif action == "hybrid_search":
                 chunks = await strategy.execute_hybrid(query, top_k, filters, alpha)
             elif action == "rerank":
+                # Chunks may come from input_data directly, or from previous step results
                 input_chunks = task.input_data.get("chunks", [])
+                if not input_chunks:
+                    # Pull from previous results injected by workflow engine
+                    prev_results = task.input_data.get("previous_results", [])
+                    for prev in prev_results:
+                        input_chunks.extend(prev.get("chunks", []))
                 chunks = await strategy.rerank_results(query, input_chunks, top_k)
             else:
                 chunks = []
