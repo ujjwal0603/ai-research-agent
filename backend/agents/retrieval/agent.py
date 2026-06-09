@@ -128,8 +128,8 @@ class RetrievalAgent(BaseAgent):
     # ── BaseAgent interface ─────────────────────────────────────────────
 
     async def validate_input(self, task: AgentTask) -> bool:
-        """Validate that the task payload contains the required fields."""
-        action = task.payload.get("action")
+        """Validate that the task input_data contains the required fields."""
+        action = task.input_data.get("action")
         if action not in self.capabilities:
             logger.warning(
                 "Invalid action '%s' for RetrievalAgent. Valid: %s",
@@ -139,14 +139,14 @@ class RetrievalAgent(BaseAgent):
             return False
 
         if action == "rerank":
-            # Rerank requires 'chunks' in payload.
-            if not task.payload.get("chunks"):
-                logger.warning("Rerank action requires 'chunks' in payload.")
+            # Rerank requires 'chunks' in input_data.
+            if not task.input_data.get("chunks"):
+                logger.warning("Rerank action requires 'chunks' in input_data.")
                 return False
         else:
             # All search actions require 'query'.
-            if not task.payload.get("query"):
-                logger.warning("Search action requires 'query' in payload.")
+            if not task.input_data.get("query"):
+                logger.warning("Search action requires 'query' in input_data.")
                 return False
 
         return True
@@ -177,11 +177,11 @@ class RetrievalAgent(BaseAgent):
                 latency_ms=latency,
             )
 
-        action: str = task.payload["action"]
-        query: str = task.payload.get("query", "")
-        top_k: int = task.payload.get("top_k", DEFAULT_TOP_K)
-        filters: dict | None = task.payload.get("filters")
-        alpha: float = task.payload.get("alpha", 0.5)
+        action: str = task.input_data["action"]
+        query: str = task.input_data.get("query", "")
+        top_k: int = task.input_data.get("top_k", DEFAULT_TOP_K)
+        filters: dict | None = task.input_data.get("filters")
+        alpha: float = task.input_data.get("alpha", 0.5)
 
         try:
             strategy = await self._get_strategy()
@@ -194,7 +194,7 @@ class RetrievalAgent(BaseAgent):
             elif action == "hybrid_search":
                 chunks = await strategy.execute_hybrid(query, top_k, filters, alpha)
             elif action == "rerank":
-                input_chunks = task.payload.get("chunks", [])
+                input_chunks = task.input_data.get("chunks", [])
                 chunks = await strategy.rerank_results(query, input_chunks, top_k)
             else:
                 chunks = []

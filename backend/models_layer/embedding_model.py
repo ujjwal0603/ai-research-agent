@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 class EmbeddingModel(ModelProvider):
     """Async wrapper around Google Gemini Embeddings API."""
 
-    def __init__(self, model_name_or_path: str = "models/text-embedding-004") -> None:
-        self._model_name = "models/text-embedding-004"
+    def __init__(self, model_name_or_path: str = "models/embedding-001") -> None:
+        self._model_name = "models/embedding-001"
         self._dimension: int = 768
         self._loaded: bool = False
         logger.info("EmbeddingModel created (Gemini API, no local RAM used)")
