@@ -98,19 +98,25 @@ class QdrantStore(VectorStore):
             raise
 
         for name in _COLLECTIONS:
-            if name in existing:
-                logger.info("Collection '%s' already exists — skipping.", name)
-                continue
+            if name not in existing:
+                logger.info("Creating Qdrant collection '%s' …", name)
+                await self._client.create_collection(
+                    collection_name=name,
+                    vectors_config=qmodels.VectorParams(
+                        size=self._dimension,
+                        distance=qmodels.Distance.COSINE,
+                    ),
+                )
+                logger.info("Collection '%s' created.", name)
 
-            logger.info("Creating Qdrant collection '%s' …", name)
-            await self._client.create_collection(
-                collection_name=name,
-                vectors_config=qmodels.VectorParams(
-                    size=self._dimension,
-                    distance=qmodels.Distance.COSINE,
-                ),
-            )
-            logger.info("Collection '%s' created.", name)
+            try:
+                await self._client.create_payload_index(
+                    collection_name=name,
+                    field_name="document_id",
+                    field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                )
+            except Exception as exc:
+                logger.debug("Payload index creation skipped for %s: %s", name, exc)
 
         logger.info("QdrantStore initialised (%d collections).", len(_COLLECTIONS))
 

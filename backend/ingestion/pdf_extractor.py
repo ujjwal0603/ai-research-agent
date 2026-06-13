@@ -63,7 +63,7 @@ class PDFExtractor:
             )
             
             # Use Groq's vision model
-            model_name = "llama-3.2-11b-vision-preview"
+            model_name = "llama-3.2-90b-vision-preview"
             
             response = client.chat.completions.create(
                 model=model_name,
