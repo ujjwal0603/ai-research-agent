@@ -46,6 +46,7 @@ export default function Home() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
   const loadDocuments = useCallback(async () => {
     if (!user) return;
@@ -159,13 +160,16 @@ export default function Home() {
            });
         }
       }
-    });
+    }, activeDocumentId ? [activeDocumentId] : undefined);
   };
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
       await deleteDocument(documentId);
       setDocuments((prev) => prev.filter((d) => d.document_id !== documentId));
+      if (activeDocumentId === documentId) {
+        setActiveDocumentId(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete document');
     }
@@ -212,7 +216,14 @@ export default function Home() {
 
           <FileUpload onUpload={handleUpload} isUploading={isUploading} />
 
-          <div className="sidebar-section-title">Documents ({documents.length})</div>
+          <div className="sidebar-section-title">
+            Documents ({documents.length})
+            {activeDocumentId && (
+              <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--primary-color)', marginLeft: '8px' }}>
+                (1 Active)
+              </span>
+            )}
+          </div>
 
           {documents.length === 0 ? (
             <div className="no-documents">
@@ -225,7 +236,12 @@ export default function Home() {
           ) : (
             <div className="document-list">
               {documents.map((doc) => (
-                <div key={doc.document_id} className="document-card">
+                <div 
+                  key={doc.document_id} 
+                  className={`document-card ${activeDocumentId === doc.document_id ? 'active' : ''}`}
+                  onClick={() => setActiveDocumentId(activeDocumentId === doc.document_id ? null : doc.document_id)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="document-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -248,7 +264,10 @@ export default function Home() {
                   </div>
                   <button
                     className="delete-button"
-                    onClick={() => handleDeleteDocument(doc.document_id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDocument(doc.document_id);
+                    }}
                     title="Delete document"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

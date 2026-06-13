@@ -231,9 +231,10 @@ export async function streamChat(
     onSources?: (sources: SourceChunk[]) => void;
     onDone?: (fullAnswer: string) => void;
     onError?: (errorMsg: string) => void;
-  }
+  },
+  document_ids?: string[]
 ): Promise<void> {
-  const body = { query, stream: true };
+  const body = { query, stream: true, document_ids };
   const token = getAccessToken();
   const headers = new Headers({
     'Content-Type': 'application/json',

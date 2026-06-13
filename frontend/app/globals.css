@@ -395,6 +395,16 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.document-card.active {
+  border-color: var(--accent-violet);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-glow-violet);
+}
+
+.document-card.active .document-icon {
+  color: var(--accent-violet);
+}
+
 .document-icon {
   width: 34px;
   height: 34px;
