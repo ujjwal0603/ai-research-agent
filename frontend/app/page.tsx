@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/AuthContext';
 import FileUpload from '@/components/FileUpload';
 import ChatInterface from '@/components/ChatInterface';
@@ -48,6 +49,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
   const loadDocuments = useCallback(async () => {
     if (!user) return;
     try {
@@ -57,6 +61,10 @@ export default function Home() {
       console.error('Failed to load documents:', err);
     }
   }, [user]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -100,26 +108,28 @@ export default function Home() {
   };
 
   const handleSendMessage = async (query: string) => {
-    const userMessage: Message = { role: 'user', content: query };
-    setMessages((prev) => [...prev, userMessage]);
+    const userMsg: Message = { role: 'user', content: query };
+    setMessages((prev) => [...prev, userMsg]);
     setIsChatLoading(true);
-    setError(null);
+
+    const assistantMsgIndex = messages.length + 1;
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
     let currentAnswer = '';
     let currentSources: SourceChunk[] = [];
-    
-    // Add empty assistant message that we will populate
-    const assistantMsgIndex = messages.length + 1;
-    setMessages((prev) => [...prev, { role: 'assistant', content: '', sources: [] }]);
 
-    await streamChat(query, {
+    await streamChat({
+      query,
       onToken: (token) => {
-        setIsChatLoading(false); // We have started receiving tokens
+        setIsChatLoading(false);
         currentAnswer += token;
         setMessages((prev) => {
           const newMsgs = [...prev];
           if (newMsgs[assistantMsgIndex]) {
-            newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], content: currentAnswer };
+            newMsgs[assistantMsgIndex] = { 
+              ...newMsgs[assistantMsgIndex], 
+              content: currentAnswer 
+            };
           }
           return newMsgs;
         });
@@ -129,24 +139,20 @@ export default function Home() {
         setMessages((prev) => {
           const newMsgs = [...prev];
           if (newMsgs[assistantMsgIndex]) {
-            newMsgs[assistantMsgIndex] = { ...newMsgs[assistantMsgIndex], sources: currentSources };
+            newMsgs[assistantMsgIndex] = { 
+              ...newMsgs[assistantMsgIndex], 
+              sources: currentSources 
+            };
           }
           return newMsgs;
         });
       },
-      onDone: (fullAnswer) => {
+      onDone: () => {
         setIsChatLoading(false);
-        setMessages((prev) => {
-          const newMsgs = [...prev];
-          if (newMsgs[assistantMsgIndex]) {
-            newMsgs[assistantMsgIndex] = { role: 'assistant', content: fullAnswer, sources: currentSources };
-          }
-          return newMsgs;
-        });
       },
-      onError: (errorMsg) => {
+      onError: (err) => {
         setIsChatLoading(false);
-        setError(errorMsg);
+        setError(err);
         if (currentAnswer === '') {
            setMessages((prev) => {
              const newMsgs = [...prev];
@@ -175,6 +181,10 @@ export default function Home() {
     }
   };
 
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
   return (
     <div className="app-container">
       {error && (
@@ -192,37 +202,42 @@ export default function Home() {
           <div className="sidebar-logo">
             <div className="sidebar-logo-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
+                <rect x="3" y="3" width="18" height="18" rx="4" />
+                <path d="M8 12h8" />
+                <path d="M12 8v8" />
               </svg>
             </div>
             <div>
-              <h1>AI Research Agent</h1>
-              <p>v2 architecture</p>
+              <h1>Research agent</h1>
+              <p>v2 · arc</p>
             </div>
           </div>
         </div>
 
-        <div className="sidebar-section">
-          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-               Welcome, <strong style={{color: 'white'}}>{user.full_name}</strong>
-             </div>
-             <button onClick={logout} className="auth-button" style={{ padding: '6px 12px', marginTop: '0', fontSize: '12px' }}>
-               Sign out
-             </button>
+        <div className="sidebar-user-card">
+          <div className="user-avatar">{getInitials(user.full_name)}</div>
+          <div className="user-details">
+            <span className="user-name">{user.full_name}</span>
           </div>
+          <button onClick={logout} className="sign-out-btn">Sign out</button>
+          {mounted && (
+            <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
+              {theme === 'dark' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
+          )}
+        </div>
 
+        <div className="sidebar-section">
           <FileUpload onUpload={handleUpload} isUploading={isUploading} />
+        </div>
 
+        <div className="sidebar-section" style={{ flex: 1, overflowY: 'auto' }}>
           <div className="sidebar-section-title">
-            Documents ({documents.length})
-            {activeDocumentId && (
-              <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--primary-color)', marginLeft: '8px' }}>
-                (1 Active)
-              </span>
-            )}
+            Documents <span className="doc-count">{documents.length}</span>
           </div>
 
           {documents.length === 0 ? (
@@ -240,7 +255,6 @@ export default function Home() {
                   key={doc.document_id} 
                   className={`document-card ${activeDocumentId === doc.document_id ? 'active' : ''}`}
                   onClick={() => setActiveDocumentId(activeDocumentId === doc.document_id ? null : doc.document_id)}
-                  style={{ cursor: 'pointer' }}
                 >
                   <div className="document-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -255,13 +269,16 @@ export default function Home() {
                       {doc.filename}
                     </div>
                     <div className="document-meta">
-                      <span>{doc.page_count} pages</span>
-                      <span className="separator" />
+                      <span>{doc.page_count} pg</span>
+                      <span className="separator">·</span>
                       <span>{formatFileSize(doc.file_size_bytes)}</span>
-                      <span className="separator" />
+                      <span className="separator">·</span>
                       <span>{formatDate(doc.upload_time)}</span>
                     </div>
                   </div>
+                  {activeDocumentId === doc.document_id && (
+                    <div className="active-badge">active</div>
+                  )}
                   <button
                     className="delete-button"
                     onClick={(e) => {
@@ -271,10 +288,9 @@ export default function Home() {
                     title="Delete document"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="19" cy="12" r="1" />
+                      <circle cx="5" cy="12" r="1" />
                     </svg>
                   </button>
                 </div>
@@ -282,14 +298,21 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        <div className="sidebar-footer">
+          <button className="new-conversation-btn" onClick={() => setMessages([])}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New conversation
+          </button>
+        </div>
       </aside>
 
-      {/* Main content */}
       <main className="main-content">
         <ChatInterface
           messages={messages}
           isLoading={isChatLoading}
           onSendMessage={handleSendMessage}
+          activeDocument={documents.find(d => d.document_id === activeDocumentId) || null}
         />
       </main>
     </div>
