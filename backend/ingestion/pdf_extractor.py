@@ -35,23 +35,26 @@ class PDFExtractor:
             
         return False
 
-    def _extract_text_with_gemini(self, page: fitz.Page) -> str:
-        """Use Gemini 2.0 Flash as an OCR engine for image-based pages."""
+    def _extract_text_with_vision_llm(self, page: fitz.Page) -> str:
+        """Use Groq Vision (LLaMA 3.2 Vision) as an OCR engine for image-based pages."""
         try:
-            import google.generativeai as genai
+            import base64
+            from openai import OpenAI
             from config.settings import get_settings
             
             settings = get_settings()
-            if not settings.GEMINI_API_KEY:
-                logger.warning("No GEMINI_API_KEY found, skipping OCR fallback.")
+            if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "your_openai_api_key_here":
+                logger.warning("No OPENAI_API_KEY found, skipping OCR fallback.")
                 return ""
             
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel("gemini-2.0-flash")
+            # If using Groq, ensure the base URL is pointing to Groq's OpenAI compatibility endpoint
+            base_url = settings.OPENAI_BASE_URL or "https://api.groq.com/openai/v1"
+            client = OpenAI(api_key=settings.OPENAI_API_KEY, base_url=base_url)
             
             # Render page to image at 150 DPI for good OCR quality
             pix = page.get_pixmap(dpi=150)
             image_bytes = pix.tobytes("png")
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
             
             prompt = (
                 "Extract all the text from this image exactly as written. "
@@ -59,15 +62,33 @@ class PDFExtractor:
                 "Just return the raw text."
             )
             
-            image_part = {
-                "mime_type": "image/png",
-                "data": image_bytes
-            }
+            # Use Groq's vision model
+            model_name = "llama-3.2-11b-vision-preview"
             
-            response = model.generate_content([prompt, image_part])
-            return response.text.strip()
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}"
+                                },
+                            },
+                        ],
+                    }
+                ],
+                max_tokens=1500,
+            )
+            
+            if response.choices and response.choices[0].message.content:
+                return response.choices[0].message.content.strip()
+            return ""
         except Exception as e:
-            logger.error(f"Gemini OCR failed: {e}")
+            logger.error(f"Vision OCR failed: {e}")
             return ""
 
     def extract_text(self, file_path: str) -> str:
@@ -96,8 +117,8 @@ class PDFExtractor:
                 
                 # Check if we need OCR
                 if self._is_garbage_text(text):
-                    logger.info(f"Page {i+1} of {path.name} appears to be an image/garbage. Falling back to Gemini OCR...")
-                    ocr_text = self._extract_text_with_gemini(page)
+                    logger.info(f"Page {i+1} of {path.name} appears to be an image/garbage. Falling back to Vision OCR...")
+                    ocr_text = self._extract_text_with_vision_llm(page)
                     if ocr_text:
                         text = ocr_text
                 
