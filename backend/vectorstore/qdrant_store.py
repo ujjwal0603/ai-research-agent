@@ -282,10 +282,15 @@ class QdrantStore(VectorStore):
         """Translate a flat ``{key: value}`` dict into a Qdrant ``Filter``."""
         conditions: list[qmodels.FieldCondition] = []
         for key, value in filters.items():
+            if isinstance(value, list):
+                match = qmodels.MatchAny(any=value)
+            else:
+                match = qmodels.MatchValue(value=value)
+                
             conditions.append(
                 qmodels.FieldCondition(
                     key=key,
-                    match=qmodels.MatchValue(value=value),
+                    match=match,
                 )
             )
         return qmodels.Filter(must=conditions)

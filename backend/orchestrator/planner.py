@@ -58,6 +58,16 @@ class TaskPlanner:
         ctx = context or {}
         intent, confidence = await self._intent_classifier.classify(query)
 
+        # Prepare filters globally
+        document_ids = ctx.get("document_ids")
+        filters = {}
+        if document_ids:
+            if len(document_ids) == 1:
+                filters["document_id"] = document_ids[0]
+            else:
+                filters["document_id"] = document_ids
+        ctx["_computed_filters"] = filters
+
         plan = ExecutionPlan(intent=intent, confidence=confidence, context=ctx)
 
         # Build steps based on intent
@@ -74,7 +84,6 @@ class TaskPlanner:
 
     def _plan_question(self, plan: ExecutionPlan, query: str, ctx: dict) -> None:
         """QUESTION: Retrieve → Rerank → Generate answer"""
-        document_ids = ctx.get("document_ids")
         search_strategy = ctx.get("search_strategy", "hybrid")
         # Ensure we have a plain string, not an Enum object
         if hasattr(search_strategy, "value"):
@@ -89,7 +98,7 @@ class TaskPlanner:
                 input_data={
                     "query": query,
                     "top_k": top_k * 2,  # Over-retrieve for reranking
-                    "filters": {"document_ids": document_ids} if document_ids else {},
+                    "filters": ctx.get("_computed_filters", {}),
                 },
             ),
             PlannedStep(
@@ -103,8 +112,6 @@ class TaskPlanner:
 
     def _plan_summarize(self, plan: ExecutionPlan, query: str, ctx: dict) -> None:
         """SUMMARIZE: Retrieve → Summarize (Phase 1: just retrieve + reasoning)"""
-        document_ids = ctx.get("document_ids")
-
         plan.steps = [
             PlannedStep(
                 step_index=0,
@@ -113,15 +120,13 @@ class TaskPlanner:
                 input_data={
                     "query": query,
                     "top_k": 15,
-                    "filters": {"document_ids": document_ids} if document_ids else {},
+                    "filters": ctx.get("_computed_filters", {}),
                 },
             ),
         ]
 
     def _plan_quiz(self, plan: ExecutionPlan, query: str, ctx: dict) -> None:
         """QUIZ: Retrieve → Generate quiz (Phase 1: retrieve + reasoning)"""
-        document_ids = ctx.get("document_ids")
-
         plan.steps = [
             PlannedStep(
                 step_index=0,
@@ -130,7 +135,7 @@ class TaskPlanner:
                 input_data={
                     "query": query,
                     "top_k": 10,
-                    "filters": {"document_ids": document_ids} if document_ids else {},
+                    "filters": ctx.get("_computed_filters", {}),
                 },
             ),
         ]
@@ -148,8 +153,6 @@ class TaskPlanner:
 
     def _plan_learn(self, plan: ExecutionPlan, query: str, ctx: dict) -> None:
         """LEARN: Retrieve → Build learning path (Phase 1: retrieve + reasoning)"""
-        document_ids = ctx.get("document_ids")
-
         plan.steps = [
             PlannedStep(
                 step_index=0,
@@ -158,7 +161,7 @@ class TaskPlanner:
                 input_data={
                     "query": query,
                     "top_k": 20,
-                    "filters": {"document_ids": document_ids} if document_ids else {},
+                    "filters": ctx.get("_computed_filters", {}),
                 },
             ),
         ]
